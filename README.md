@@ -41,13 +41,8 @@ A minimal forward authentication service that provides OAuth/SSO login and authe
 
 ## Releases
 
-We recommend using the `2` tag on docker hub (`thomseddon/traefik-forward-auth:2`).
+We recommend using the `latest` tag on github packages (`ghcr.io/palmergw/traefik-forward-auth:latest`).
 
-You can also use the latest incremental releases found on [docker hub](https://hub.docker.com/r/thomseddon/traefik-forward-auth/tags) and [github](https://github.com/thomseddon/traefik-forward-auth/releases).
-
-ARM releases are also available on docker hub, just append `-arm` or `-arm64` to your desired released (e.g. `2-arm` or `2.1-arm64`).
-
-We also build binary files for usage without docker starting with releases after 2.2.0 You can find these as assets of the specific GitHub release.
 
 #### Upgrade Guide
 
