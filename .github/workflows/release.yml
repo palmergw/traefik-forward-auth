@@ -3,7 +3,10 @@ name: Release
 on:
   release:
     types: [published]
-
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  
 jobs:
 
   build:
@@ -28,13 +31,11 @@ jobs:
     - name: Get tag name
       run: echo "TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
-    - name: Get artifact details
-      uses: octokit/request-action@v2.x
-      id: get_release_details
+    - name: Extract metadata (tags, labels) for Docker
+      id: meta
+      uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
       with:
-        route: get /repos/${{ github.repository }}/releases/tags/${{ env.TAG }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
     - name: Upload AMD64 release asset
       uses: softprops/action-gh-release@v1
@@ -49,3 +50,17 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         files: traefik-forward-auth_arm
+    - name: Log in to the Container registry
+      uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
