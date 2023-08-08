@@ -41,17 +41,11 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ fromJson(steps.get_release_details.outputs.data).upload_url }}
-        asset_path: traefik-forward-auth_amd64
-        asset_name: traefik-forward-auth_amd64
-        asset_content_type: application/octet-stream
+        file: traefik-forward-auth_amd64
 
     - name: Upload ARM release asset
       uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ fromJson(steps.get_release_details.outputs.data).upload_url }}
-        asset_path: traefik-forward-auth_arm
-        asset_name: traefik-forward-auth_arm
-        asset_content_type: application/octet-stream
+        file: traefik-forward-auth_arm
