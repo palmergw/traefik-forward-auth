@@ -484,6 +484,76 @@ func TestServerRouteQuery(t *testing.T) {
 	assert.Equal(200, res.StatusCode, "request matching allow rule should be allowed")
 }
 
+func TestServerRouteHostAndPathPrefixes(t *testing.T) {
+	assert := assert.New(t)
+	config = newDefaultConfig()
+	config.Rules = map[string]*Rule{
+		"1": {
+			Action: "allow",
+			Rule:   "Host(`office.example.com`) && (PathPrefix(`/browser/`) || PathPrefix(`/cool/http`))",
+		},
+	}
+
+	// Should allow matching host and path
+	req := newHTTPRequest("GET", "https://office.example.com/browser/abc/cool.html")
+	res, _ := doHttpRequest(req, nil)
+	assert.Equal(200, res.StatusCode, "request matching host and first path should be allowed")
+
+	// Should allow URL-encoded path matching second prefix
+	req = newHTTPRequest("GET", "https://office.example.com/cool/https%3A%2F%2Fcloud.example.com%2Fwopi%2Ffiles%2F1/ws")
+	res, _ = doHttpRequest(req, nil)
+	assert.Equal(200, res.StatusCode, "request matching host and encoded second path should be allowed")
+
+	// Should block matching host with other path
+	req = newHTTPRequest("POST", "https://office.example.com/cool/convert-to/pdf")
+	res, _ = doHttpRequest(req, nil)
+	assert.Equal(307, res.StatusCode, "request matching host but no path should require auth")
+
+	// Should block matching path on other host
+	req = newHTTPRequest("GET", "https://example.com/browser/abc/cool.html")
+	res, _ = doHttpRequest(req, nil)
+	assert.Equal(307, res.StatusCode, "request matching path but not host should require auth")
+}
+
+func TestServerHeadRequest(t *testing.T) {
+	assert := assert.New(t)
+	config = newDefaultConfig()
+	config.Rules = map[string]*Rule{
+		"1": {
+			Action: "allow",
+			Rule:   "Host(`api.example.com`)",
+		},
+	}
+
+	// Traefik sends a GET with the original method in X-Forwarded-Method and
+	// waits for a body, so serve over real HTTP where HEAD suppresses the body
+	// (https://github.com/thomseddon/traefik-forward-auth/issues/156)
+	server := httptest.NewServer(http.HandlerFunc(NewServer().RootHandler))
+	defer server.Close()
+	client := &http.Client{
+		Timeout: 2 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	for host, status := range map[string]int{"example.com": 307, "api.example.com": 200} {
+		req, _ := http.NewRequest("GET", server.URL+"/", nil)
+		req.Header.Add("X-Forwarded-Method", "HEAD")
+		req.Header.Add("X-Forwarded-Proto", "https")
+		req.Header.Add("X-Forwarded-Host", host)
+		req.Header.Add("X-Forwarded-Uri", "/")
+
+		res, err := client.Do(req)
+		if assert.NoError(err, "HEAD request to %s should not time out", host) {
+			_, err = ioutil.ReadAll(res.Body)
+			res.Body.Close()
+			assert.NoError(err, "HEAD request to %s should return a readable body", host)
+			assert.Equal(status, res.StatusCode, "HEAD request to %s should get normal status", host)
+		}
+	}
+}
+
 /**
  * Utilities
  */
